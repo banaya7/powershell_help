@@ -1,4 +1,5 @@
 #Define path to your import CSV file location in a variable as shown in below line.
+
 $AD_Users = Import-csv C:\scripts\newusers.csv
 foreach ($User in $AD_Users)
 {
@@ -32,4 +33,37 @@ foreach ($User in $AD_Users)
             -Path $User_OU `
             -AccountPassword (convertto-securestring $User_Password -AsPlainText -Force)
        }
+}
+
+#a SAmple .ps1 powershell script to do it
+
+# Import the Active Directory module
+Import-Module ActiveDirectory
+
+# Path to the CSV file
+$csvPath = "C:\Path\To\Users.csv"
+
+# Import the CSV file
+$users = Import-Csv -Path $csvPath
+
+# Loop through each user in the CSV
+foreach ($user in $users) {
+    # Create a hash table for user properties
+    $userParams = @{
+        GivenName       = $user.FirstName
+        Surname         = $user.LastName
+        SamAccountName  = $user.Username
+        UserPrincipalName = "$($user.Username)@domain.com"
+        AccountPassword = (ConvertTo-SecureString $user.Password -AsPlainText -Force)
+        Enabled         = $true
+        Path            = $user.OU
+    }
+
+    # Create the user in Active Directory
+    try {
+        New-ADUser @userParams
+        Write-Host "Successfully added user: $($user.Username)" -ForegroundColor Green
+    } catch {
+        Write-Host "Failed to add user: $($user.Username). Error: $($_.Exception.Message)" -ForegroundColor Red
+    }
 }
