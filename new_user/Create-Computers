@@ -1,0 +1,20 @@
+# Define the OU where computers will be created
+$OUPath = "OU=Computers,OU=Las Cruces Office,OU=Branches,DC=techbizinfo,DC=local"
+
+# Loop to create 40 computers
+for ($i = 1; $i -le 15; $i++) {
+    # Format the computer name as ALB001, ALB002, ..., ALB040
+    $ComputerName = "CRU" + $i.ToString("000")
+
+    # Create the computer object in Active Directory
+    New-ADComputer `
+        -Name $ComputerName `
+        -SamAccountName $ComputerName$ `
+        -Path $OUPath `
+        -Description "Automated Computer Account - Albuquerque Office" `
+        -Enabled $true
+
+    Write-Host "Created computer: $ComputerName in $OUPath"
+}
+
+Write-Host "All 15 computers created successfully."
