@@ -1,69 +1,36 @@
-#Define path to your import CSV file location in a variable as shown in below line.
+#Import .csv folder (File should be written like this FirstName,LastName,Username,UPN,OU)
+$users = Import-Csv C:\Users\Administrator.DC-ALB\Desktop\AD_users.csv 
 
-$AD_Users = Import-csv C:\scripts\newusers.csv
-foreach ($User in $AD_Users)
-{
-       $User_name    = $User.username
-       $User_Password    = $User.password
-       $First_name   = $User.firstname
-       $Last_name    = $User.lastname
-    $User_Department = $User.department
-       $User_OU           = $User.ou
-       #Below if-else condition will check if the user already exists in Active Directory.
-       if (Get-ADUser -F {SamAccountName -eq $User_name})
-       {
-               #Will output a warning message if user exist.
-               Write-Warning "A user $User_name has already existed in Active Directory."
-       }
-       else
-       {
-              #Will create a new user, if user is not available in Active Directory.
-          
-        #User account will be created in the OU listed in the $User_OU variable in the CSV file; it is necessary to change the domain name in the"-UserPrincipalName" variable in the script below.
-              New-ADUser `
-            -SamAccountName $User_name `
-            -UserPrincipalName "$Username@example.com"
-            -Name "$First_name $Last_name"
-            -GivenName $First_name `
-            -Surname $Last_name `
-            -Enabled $True `
-            -ChangePasswordAtLogon $True `
-            -DisplayName "$Last_name, $First_name" `
-            -Department $User_Department `
-            -Path $User_OU `
-            -AccountPassword (convertto-securestring $User_Password -AsPlainText -Force)
-       }
-}
-
-#a SAmple .ps1 powershell script to do it
-
-# Import the Active Directory module
-Import-Module ActiveDirectory
-
-# Path to the CSV file
-$csvPath = "C:\Path\To\Users.csv"
-
-# Import the CSV file
-$users = Import-Csv -Path $csvPath
-
-# Loop through each user in the CSV
 foreach ($user in $users) {
-    # Create a hash table for user properties
-    $userParams = @{
-        GivenName       = $user.FirstName
-        Surname         = $user.LastName
-        SamAccountName  = $user.Username
-        UserPrincipalName = "$($user.Username)@domain.com"
-        AccountPassword = (ConvertTo-SecureString $user.Password -AsPlainText -Force)
-        Enabled         = $true
-        Path            = $user.OU
-    }
+    # Use the OU from the CSV directly
+    $OUPath = $user.OU
 
-    # Create the user in Active Directory
-    try {
-        New-ADUser @userParams
-        Write-Host "Successfully added user: $($user.Username)" -ForegroundColor Green
-    } catch {
-        Write-Host "Failed to add user: $($user.Username). Error: $($_.Exception.Message)" -ForegroundColor Red
+    # Ensure First & Last Name Fields Exist
+    if (-not [string]::IsNullOrEmpty($user.FirstName) -and -not [string]::IsNullOrEmpty($user.LastName)) {
+        $DisplayName = "$($user.FirstName) $($user.LastName)"
+        $SamAccountName = "$($user.FirstName).$($user.LastName)".ToLower()
+
+        try {
+            # Create the AD User
+            New-ADUser `
+                -Name $DisplayName `
+                -GivenName $user.FirstName `
+                -Surname $user.LastName `
+                -SamAccountName $user.Username `
+                -UserPrincipalName $user.UserPrincipalName `
+                -Path $OUPath `
+                -AccountPassword (ConvertTo-SecureString "Password123" -AsPlainText -Force) `
+                -Enabled $true `
+                -ChangePasswordAtLogon $true
+
+            Write-Host "Created user: $DisplayName in $OUPath" -ForegroundColor Green
+        }
+        catch {
+            Write-Host "Failed to create user: $DisplayName - Error: $_" -ForegroundColor Red
+            $_ | Out-File -Append "C:\Users\Administrator.DC-ALB\Desktop\errorlog.txt"
+        }
+    }
+    else {
+        Write-Host "Skipping user due to missing name fields" -ForegroundColor Yellow
     }
 }
